@@ -1,83 +1,80 @@
-#' Connect to Ollama
+#' Get Ollama server status
 #'
-#' Create a connection object for a local Ollama server.
+#' Check the status of the Ollama service on the inference API server.
 #'
-#' @param base_url The Ollama server URL (default: "http://localhost:11434")
-#' @return An ollama_client object
+#' @param client An infer_client object
+#' @return A list with Ollama availability status and model count
 #' @export
 #' @examples
 #' \dontrun{
-#' ollama <- ollama_connect()
-#' ollama <- ollama_connect("http://localhost:11434")
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#' status <- infer_ollama_status(client)
+#' print(status)
 #' }
-ollama_connect <- function(base_url = "http://localhost:11434") {
-  base_url <- sub("/$", "", base_url)
+infer_ollama_status <- function(client) {
+  resp <- httr2::request(paste0(client$base_url, "/ollama/status")) |>
+    httr2::req_headers("X-API-Key" = client$api_key) |>
+    httr2::req_perform()
 
-  client <- list(base_url = base_url)
-  class(client) <- "ollama_client"
-
-  tryCatch({
-    resp <- httr2::request(paste0(base_url, "/api/tags")) |>
-      httr2::req_perform()
-    models <- httr2::resp_body_json(resp)
-    n_models <- length(models$models)
-    cli::cli_alert_success("Connected to Ollama at {.url {base_url}} - {n_models} model(s) available")
-  }, error = function(e) {
-    cli::cli_abort("Failed to connect to Ollama at {base_url}: {e$message}")
-  })
-
-  invisible(client)
+  httr2::resp_body_json(resp)
 }
 
 #' List available Ollama models
 #'
-#' @param client An ollama_client object
-#' @return A list of available models
+#' Get the list of models available on the server's Ollama instance.
+#'
+#' @param client An infer_client object
+#' @return A list of available Ollama models
 #' @export
-ollama_models <- function(client) {
-  resp <- httr2::request(paste0(client$base_url, "/api/tags")) |>
+#' @examples
+#' \dontrun{
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#' models <- infer_ollama_models(client)
+#' print(models)
+#' }
+infer_ollama_models <- function(client) {
+  resp <- httr2::request(paste0(client$base_url, "/ollama/models")) |>
+    httr2::req_headers("X-API-Key" = client$api_key) |>
     httr2::req_perform()
 
-  result <- httr2::resp_body_json(resp)
-  result$models
+  httr2::resp_body_json(resp)
 }
 
 #' Generate text with Ollama
 #'
-#' Generate text using a local LLM via Ollama.
+#' Generate text using an LLM via the server's Ollama instance.
 #'
-#' @param client An ollama_client object
-#' @param model The model name (e.g., "llama3", "mistral", "phi3")
+#' @param client An infer_client object
+#' @param model The model name (e.g., "llama3", "mistral", "gemma3:27b")
 #' @param prompt The prompt to send to the model
 #' @param system Optional system message
-#' @param stream Whether to stream the response (default FALSE)
 #' @param options Optional model parameters (temperature, top_p, etc.)
 #' @return The generated text (character string)
 #' @export
 #' @examples
 #' \dontrun{
-#' ollama <- ollama_connect()
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
 #'
 #' # Simple generation
-#' response <- ollama_generate(ollama, "llama3", "What is R?")
+#' response <- infer_ollama_generate(client, "gemma3:27b", "What is R?")
+#' cat(response)
 #'
 #' # With system prompt
-#' response <- ollama_generate(ollama, "llama3",
+#' response <- infer_ollama_generate(client, "gemma3:27b",
 #'   prompt = "Extract key entities from: The stock market crashed today",
 #'   system = "You are an NLP expert. Return only a comma-separated list."
 #' )
 #'
 #' # With custom parameters
-#' response <- ollama_generate(ollama, "mistral",
+#' response <- infer_ollama_generate(client, "gemma3:27b",
 #'   prompt = "Write a haiku about data science",
 #'   options = list(temperature = 0.7)
 #' )
 #' }
-ollama_generate <- function(client, model, prompt, system = NULL, stream = FALSE, options = NULL) {
+infer_ollama_generate <- function(client, model, prompt, system = NULL, options = NULL) {
   body <- list(
     model = model,
-    prompt = prompt,
-    stream = stream
+    prompt = prompt
   )
 
   if (!is.null(system)) {
@@ -88,7 +85,11 @@ ollama_generate <- function(client, model, prompt, system = NULL, stream = FALSE
     body$options <- options
   }
 
-  resp <- httr2::request(paste0(client$base_url, "/api/generate")) |>
+  resp <- httr2::request(paste0(client$base_url, "/ollama/generate")) |>
+    httr2::req_headers(
+      "X-API-Key" = client$api_key,
+      "Content-Type" = "application/json"
+    ) |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(300) |>
     httr2::req_perform()
@@ -99,63 +100,60 @@ ollama_generate <- function(client, model, prompt, system = NULL, stream = FALSE
 
 #' Chat with Ollama
 #'
-#' Have a multi-turn conversation with a local LLM via Ollama.
+#' Have a multi-turn conversation with an LLM via the server's Ollama instance.
 #'
-#' @param client An ollama_client object
-#' @param model The model name
+#' @param client An infer_client object
+#' @param model The model name (e.g., "gemma3:27b", "llama3")
 #' @param messages A list of message objects with role and content
-#' @param stream Whether to stream the response (default FALSE)
-#' @param options Optional model parameters
+#' @param options Optional model parameters (temperature, top_p, etc.)
 #' @return A list with the assistant's response and updated messages
 #' @export
 #' @examples
 #' \dontrun{
-#' ollama <- ollama_connect()
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
 #'
 #' messages <- list(
 #'   list(role = "system", content = "You are a helpful assistant."),
 #'   list(role = "user", content = "What is machine learning?")
 #' )
 #'
-#' result <- ollama_chat(ollama, "llama3", messages)
-#' print(result$response)
+#' result <- infer_ollama_chat(client, "gemma3:27b", messages)
+#' cat(result$response)
 #'
 #' # Continue conversation
 #' messages <- result$messages
 #' messages <- append(messages, list(list(role = "user", content = "Give me an example")))
-#' result <- ollama_chat(ollama, "llama3", messages)
+#' result <- infer_ollama_chat(client, "gemma3:27b", messages)
 #' }
-ollama_chat <- function(client, model, messages, stream = FALSE, options = NULL) {
+infer_ollama_chat <- function(client, model, messages, options = NULL) {
   body <- list(
     model = model,
-    messages = messages,
-    stream = stream
+    messages = messages
   )
 
   if (!is.null(options)) {
     body$options <- options
   }
 
-  resp <- httr2::request(paste0(client$base_url, "/api/chat")) |>
+  resp <- httr2::request(paste0(client$base_url, "/ollama/chat")) |>
+    httr2::req_headers(
+      "X-API-Key" = client$api_key,
+      "Content-Type" = "application/json"
+    ) |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(300) |>
     httr2::req_perform()
 
   result <- httr2::resp_body_json(resp)
 
-  updated_messages <- append(messages, list(result$message))
+  # Build updated messages list
+  assistant_message <- list(role = "assistant", content = result$response)
+  updated_messages <- append(messages, list(assistant_message))
 
   list(
-    response = result$message$content,
+    response = result$response,
     messages = updated_messages,
     model = result$model,
     done = result$done
   )
-}
-
-#' @export
-print.ollama_client <- function(x, ...) {
-  cat("<ollama_client>\n")
-  cat("  URL:", x$base_url, "\n")
-  invisible(x)
 }

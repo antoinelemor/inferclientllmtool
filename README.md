@@ -1,8 +1,8 @@
 # inferclientllmtool
 
-R client SDK for the [Transformer Inference API](https://github.com/antoinelemor/infer-api-llm-tool) and [Ollama](https://ollama.ai) local LLM inference.
+R client SDK for the [Transformer Inference API](https://github.com/antoinelemor/infer-api-llm-tool).
 
-Classify texts at scale using models trained with [LLM Tool](https://github.com/antoinelemor/LLM_Tool), or generate text with local decoder LLMs.
+Classify texts at scale using models trained with [LLM Tool](https://github.com/antoinelemor/LLM_Tool), or generate text with decoder LLMs via the server's Ollama integration.
 
 ## Installation
 
@@ -45,24 +45,32 @@ df <- data.frame(text = c("Good news", "Bad news", "Neutral statement"))
 df_classified <- infer_classify_df(df, client, "text")
 # Returns: text, label, confidence, prob_*, ...
 ```
-### Local LLM inference with Ollama
 
-Generate text using local decoder models via Ollama:
+### LLM inference with Ollama (via server)
+
+Generate text using decoder models via the server's Ollama integration:
 
 ```r
 library(inferclientllmtool)
 
-# Connect to Ollama (default: localhost:11434)
-ollama <- ollama_connect()
+# Connect to your inference API (same client for classification and Ollama)
+client <- infer_connect(
+  base_url = "https://your-server.example.com",
+  api_key = "YOUR_API_KEY"
+)
 
-# List available models
-ollama_models(ollama)
+# Check Ollama status
+infer_ollama_status(client)
+
+# List available Ollama models
+infer_ollama_models(client)
 
 # Generate text
-response <- ollama_generate(ollama, "llama3", "What is machine learning?")
+response <- infer_ollama_generate(client, "gemma3:27b", "What is machine learning?")
+cat(response)
 
 # With system prompt (useful for extraction tasks)
-response <- ollama_generate(ollama, "llama3",
+response <- infer_ollama_generate(client, "gemma3:27b",
   prompt = "Extract key entities from: The Federal Reserve raised interest rates",
   system = "You are an NLP expert. Return only a comma-separated list of entities."
 )
@@ -72,27 +80,32 @@ messages <- list(
   list(role = "system", content = "You are a helpful assistant."),
   list(role = "user", content = "Explain R in one sentence.")
 )
-result <- ollama_chat(ollama, "llama3", messages)
-print(result$response)
+result <- infer_ollama_chat(client, "gemma3:27b", messages)
+cat(result$response)
+
+# Continue conversation
+messages <- result$messages
+messages <- append(messages, list(list(role = "user", content = "Give an example")))
+result <- infer_ollama_chat(client, "gemma3:27b", messages)
 ```
 
 ## Integration example: Radar+ pipeline
 
-Replace the OpenAI calls in your AWS Lambda with local Ollama inference:
+Use remote Ollama inference for extraction tasks:
 
 ```r
 library(inferclientllmtool)
 library(dplyr)
 library(glue)
 
-# Connect to Ollama
-ollama <- ollama_connect("http://localhost:11434")
+# Connect to API (classification + Ollama)
+client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
 
 # Extract salient objects from headlines
 df_objects <- df_clean |>
   rowwise() |>
   mutate(
-    extracted_objects = ollama_generate(ollama, "llama3",
+    extracted_objects = infer_ollama_generate(client, "gemma3:27b",
       prompt = glue("
         Article title: {title}
         Extract: {body}
@@ -132,14 +145,14 @@ df_classified <- df_clean |>
 | `infer_classify(client, texts, model)` | Classify text(s) |
 | `infer_classify_df(df, client, text_column, model)` | Classify data frame column |
 
-### Ollama (local LLMs)
+### Ollama (via server)
 
 | Function | Description |
 |----------|-------------|
-| `ollama_connect(base_url)` | Connect to Ollama server |
-| `ollama_models(client)` | List available models |
-| `ollama_generate(client, model, prompt, system, options)` | Generate text |
-| `ollama_chat(client, model, messages, options)` | Multi-turn chat |
+| `infer_ollama_status(client)` | Check Ollama availability |
+| `infer_ollama_models(client)` | List available models |
+| `infer_ollama_generate(client, model, prompt, system, options)` | Generate text |
+| `infer_ollama_chat(client, model, messages, options)` | Multi-turn chat |
 
 ## License
 
