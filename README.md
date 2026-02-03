@@ -194,6 +194,25 @@ df_classified <- df_clean |>
 | `infer_ollama_generate(client, model, prompt, system, options)` | Generate text |
 | `infer_ollama_chat(client, model, messages, options)` | Multi-turn chat |
 
+### Model info response
+
+`infer_model_info(client, model_id)` returns comprehensive metadata:
+
+| Field | Description |
+|-------|-------------|
+| `model_id` | Model identifier |
+| `base_model` | HuggingFace base model name |
+| `training_mode` | `binary`, `multi-class`, `multi-label`, `one-vs-all` |
+| `multi_label` | Whether model uses multi-label classification |
+| `labels` | List of class labels |
+| `languages` | Supported languages |
+| `metrics` | Overall metrics (macro_f1, accuracy, train_loss, val_loss) |
+| `per_class_metrics` | Per-class precision, recall, f1, support |
+| `per_language_metrics` | Per-language breakdown |
+| `hyperparameters` | Training hyperparameters |
+| `raw_config` | Full config.json contents |
+| `raw_training_metadata` | Full training_metadata.json contents |
+
 ## License
 
 MIT
