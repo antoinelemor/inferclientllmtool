@@ -1,0 +1,23 @@
+Package: inferclientllmtool
+Title: R Client for LLM Tool Inference API and Ollama
+Version: 1.0.0
+Authors@R:
+    person("Antoine", "Lemor", email = "antoine.lemor@umontreal.ca", role = c("aut", "cre"))
+Description: R client SDK for the Transformer Inference API (infer-api-llm-tool)
+    and Ollama local LLM inference. Classify texts at scale using models trained
+    with LLM Tool, or generate text with local decoder LLMs via Ollama.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Imports:
+    httr2,
+    jsonlite,
+    cli,
+    rlang
+Suggests:
+    dplyr,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+URL: https://github.com/antoinelemor/inferclientllmtool
+BugReports: https://github.com/antoinelemor/inferclientllmtool/issues
