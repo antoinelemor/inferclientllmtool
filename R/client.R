@@ -4,13 +4,16 @@
 #'
 #' @param base_url The base URL of your inference API server
 #' @param api_key Your API key for authentication
+#' @param timeout_seconds Request timeout in seconds (default: 600)
 #' @return An infer_client object
 #' @export
 #' @examples
 #' \dontrun{
 #' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#' # For large models that take longer to respond:
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY", timeout_seconds = 600)
 #' }
-infer_connect <- function(base_url, api_key) {
+infer_connect <- function(base_url, api_key, timeout_seconds = 600) {
   if (missing(base_url) || is.null(base_url) || base_url == "") {
     cli::cli_abort("base_url is required")
   }
@@ -22,7 +25,8 @@ infer_connect <- function(base_url, api_key) {
 
   client <- list(
     base_url = base_url,
-    api_key = api_key
+    api_key = api_key,
+    timeout_seconds = timeout_seconds
   )
   class(client) <- "infer_client"
 
@@ -264,5 +268,6 @@ print.infer_client <- function(x, ...) {
   cat("<infer_client>\n")
   cat("  URL:", x$base_url, "\n")
   cat("  Key:", substr(x$api_key, 1, 12), "...\n")
+  cat("  Timeout:", x$timeout_seconds, "seconds\n")
   invisible(x)
 }

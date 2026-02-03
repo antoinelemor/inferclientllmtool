@@ -91,7 +91,7 @@ infer_ollama_generate <- function(client, model, prompt, system = NULL, options 
       "Content-Type" = "application/json"
     ) |>
     httr2::req_body_json(body) |>
-    httr2::req_timeout(300) |>
+    httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
 
   result <- httr2::resp_body_json(resp)
@@ -141,7 +141,7 @@ infer_ollama_chat <- function(client, model, messages, options = NULL) {
       "Content-Type" = "application/json"
     ) |>
     httr2::req_body_json(body) |>
-    httr2::req_timeout(300) |>
+    httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
 
   result <- httr2::resp_body_json(resp)
