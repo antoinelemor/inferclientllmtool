@@ -4,6 +4,15 @@ R client SDK for the [Transformer Inference API](https://github.com/antoinelemor
 
 Classify texts at scale using models trained with [LLM Tool](https://github.com/antoinelemor/LLM_Tool), or generate text with decoder LLMs via the server's Ollama integration.
 
+## Features
+
+- **Multi-model support** — target any model registered on the inference server
+- **Multi-label classification** — supports binary, multi-class, multi-label, and one-vs-all training modes
+- **Parallel GPU+CPU inference** — hybrid inference for large batches using server-side parallelization
+- **Configurable thresholds** — customize multi-label prediction thresholds
+- **Ollama integration** — generate text and chat with server-side LLMs
+- **DataFrame classification** — classify data frame columns with automatic result binding
+
 ## Installation
 
 ```r
@@ -26,8 +35,15 @@ client <- infer_connect(
   api_key = "YOUR_API_KEY"
 )
 
-# Check available models
+# Check available models (includes training_mode, multi_label info)
 infer_models(client)
+
+# Get optimal inference configuration
+config <- infer_model_config(client, "sentiment", n_texts = 1000)
+# Returns: batch_size, use_parallel, device_mode, training_mode, etc.
+
+# Server resources
+infer_resources(client)
 
 # Classify single text
 result <- infer_classify(client, "The economy is improving")
@@ -40,10 +56,24 @@ results <- infer_classify(client,
   model = "sentiment"
 )
 
-# Classify a data frame column
+# Parallel GPU+CPU inference (for large batches)
+results <- infer_classify(client, texts, model = "sentiment",
+                          parallel = TRUE, device_mode = "both")
+
+# Multi-label classification with custom threshold
+results <- infer_classify(client, "Economic policy affects markets",
+                          model = "themes", threshold = 0.3)
+# results$results[[1]]$labels = c("economy", "politics")
+# results$results[[1]]$label_count = 2
+
+# Classify a data frame column (single-label)
 df <- data.frame(text = c("Good news", "Bad news", "Neutral statement"))
 df_classified <- infer_classify_df(df, client, "text")
 # Returns: text, label, confidence, prob_*, ...
+
+# Classify a data frame column (multi-label)
+df_classified <- infer_classify_df(df, client, "text", model = "themes", threshold = 0.3)
+# Returns: text, labels (comma-separated), label_count, threshold, prob_*, ...
 ```
 
 ### LLM inference with Ollama (via server)
@@ -140,10 +170,20 @@ df_classified <- df_clean |>
 |----------|-------------|
 | `infer_connect(base_url, api_key)` | Connect to inference API |
 | `infer_health(client)` | Check API status |
-| `infer_models(client)` | List available models |
+| `infer_models(client)` | List available models with training mode info |
 | `infer_model_info(client, model_id)` | Get model metadata |
-| `infer_classify(client, texts, model)` | Classify text(s) |
-| `infer_classify_df(df, client, text_column, model)` | Classify data frame column |
+| `infer_model_config(client, model_id, n_texts)` | Get optimal inference configuration |
+| `infer_resources(client)` | Get server resource status |
+| `infer_classify(client, texts, model, threshold, parallel, device_mode)` | Classify text(s) |
+| `infer_classify_df(df, client, text_column, model, threshold, parallel)` | Classify data frame column |
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `threshold` | model default | Multi-label threshold (0.0-1.0) |
+| `parallel` | `FALSE` | Enable parallel GPU+CPU inference |
+| `device_mode` | `"both"` | Device for parallel: `"cpu"`, `"gpu"`, or `"both"` |
 
 ### Ollama (via server)
 
