@@ -80,6 +80,53 @@ df_classified <- infer_classify_df(df, client, "text", model = "themes", thresho
 # Returns: text, labels (comma-separated), label_count, threshold, prob_*, ...
 ```
 
+### Sentence Segmentation (WTPSPLIT)
+
+Segment text into sentences using WTPSPLIT (85+ languages):
+
+```r
+library(inferclientllmtool)
+
+# Connect to your inference API
+client <- infer_connect(
+  base_url = "https://your-server.example.com",
+  api_key = "YOUR_API_KEY"
+)
+
+# Segment a single text
+result <- infer_segment_sentences(
+  client,
+  "First sentence. Second sentence! Third sentence?"
+)
+print(result$results[[1]]$sentences)
+# [1] "First sentence." "Second sentence!" "Third sentence?"
+
+# Batch segmentation
+texts <- c("Hello world. How are you?", "Another text. With multiple sentences.")
+results <- infer_segment_sentences(client, texts)
+
+for (result in results$results) {
+  cat("Text:", result$text, "\n")
+  cat("Sentences (", result$sentence_count, "):\n", sep = "")
+  for (sentence in result$sentences) {
+    cat("  -", sentence, "\n")
+  }
+}
+
+# Preserve newlines mode (for paragraph-aware segmentation)
+result <- infer_segment_sentences(
+  client,
+  "Paragraph one.\n\nParagraph two.",
+  mode = "newline"
+)
+```
+
+**Features**:
+- Fast multilingual sentence boundary detection (85+ languages)
+- Modes: `sentence` (default) or `newline` (preserves paragraph structure)
+- Small model (3 layers) with high accuracy
+- Credit: [WTPSPLIT](https://github.com/segment-any-text/wtpsplit) (segment-any-text/sat-3l-sm)
+
 ### Named Entity Recognition (requires server with NER support)
 
 Extract entities with custom labels using zero-shot NER:

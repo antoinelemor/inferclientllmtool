@@ -251,6 +251,52 @@ infer_classify_df <- function(df, client, text_column, model = NULL, batch_size 
   df
 }
 
+#' Segment text into sentences using WTPSPLIT
+#'
+#' WTPSPLIT is a fast multilingual sentence segmentation model that supports 85+ languages.
+#'
+#' @param client An infer_client object
+#' @param texts A character vector of texts to segment
+#' @param model WTPSPLIT model ID (default: "wtpsplit")
+#' @param mode Segmentation mode: 'sentence' (default) or 'newline'
+#' @return A list with segmentation results
+#' @export
+#' @examples
+#' \dontrun{
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#'
+#' # Segment a single text
+#' result <- infer_segment_sentences(client, "First sentence. Second sentence.")
+#' print(result$results[[1]]$sentences)
+#'
+#' # Batch segmentation
+#' texts <- c("Hello world. How are you?", "Another text. With sentences.")
+#' results <- infer_segment_sentences(client, texts)
+#'
+#' # Preserve newlines mode
+#' result <- infer_segment_sentences(client, "Para one.\n\nPara two.", mode = "newline")
+#' }
+infer_segment_sentences <- function(client, texts, model = "wtpsplit", mode = "sentence") {
+  if (length(texts) == 1) {
+    body <- list(text = texts, mode = mode)
+  } else {
+    body <- list(texts = as.list(texts), mode = mode)
+  }
+
+  url <- paste0(client$base_url, "/models/", model, "/segment")
+
+  resp <- httr2::request(url) |>
+    httr2::req_headers(
+      "X-API-Key" = client$api_key,
+      "Content-Type" = "application/json"
+    ) |>
+    httr2::req_body_json(body) |>
+    httr2::req_timeout(client$timeout_seconds) |>
+    httr2::req_perform()
+
+  httr2::resp_body_json(resp)
+}
+
 #' Extract named entities using GLiNER zero-shot NER
 #'
 #' GLiNER is a third-party model (https://github.com/urchade/GLiNER) that
