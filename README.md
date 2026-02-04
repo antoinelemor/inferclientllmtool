@@ -10,6 +10,10 @@ Classify texts at scale using models trained with [LLM Tool](https://github.com/
 - **Multi-label classification** — supports binary, multi-class, multi-label, and one-vs-all training modes
 - **Parallel GPU+CPU inference** — hybrid inference for large batches using server-side parallelization
 - **Configurable thresholds** — customize multi-label prediction thresholds
+- **Zero-shot NER** — extract entities with custom labels using GLiNER (requires server with `pip install 'infer-api[ner]'`)
+  - **Multilingual**: 12+ languages (EN, FR, DE, ES, IT, PT, NL, RU, ZH, JA, AR)
+  - **Custom labels**: ANY entity type ("political party", "disease", "product", etc.)
+  - **Credit**: [urchade/GLiNER](https://github.com/urchade/GLiNER) (third-party model)
 - **Ollama integration** — generate text and chat with server-side LLMs
 - **DataFrame classification** — classify data frame columns with automatic result binding
 
@@ -75,6 +79,68 @@ df_classified <- infer_classify_df(df, client, "text")
 df_classified <- infer_classify_df(df, client, "text", model = "themes", threshold = 0.3)
 # Returns: text, labels (comma-separated), label_count, threshold, prob_*, ...
 ```
+
+### Named Entity Recognition (requires server with NER support)
+
+Extract entities with custom labels using zero-shot NER:
+
+```r
+library(inferclientllmtool)
+
+# Connect to your inference API
+client <- infer_connect(
+  base_url = "https://your-server.example.com",
+  api_key = "YOUR_API_KEY"
+)
+
+# Extract entities with standard labels
+results <- infer_extract_entities(
+  client,
+  "Apple Inc. was founded by Steve Jobs in Cupertino",
+  labels = c("person", "organization", "location")
+)
+
+# Access entities from first result
+entities <- results[[1]]$entities
+for (entity in entities) {
+  cat(entity$text, "is a", entity$label, "(", entity$score, ")\n")
+}
+# Output:
+#   Apple Inc. is a organization ( 0.91 )
+#   Steve Jobs is a person ( 0.99 )
+#   Cupertino is a location ( 0.99 )
+
+# Extract custom entity types (zero-shot, no training needed)
+results <- infer_extract_entities(
+  client,
+  c(
+    "The Democratic Party won against the Republican Party",
+    "Joe Biden met with Emmanuel Macron in Paris"
+  ),
+  labels = c("political party", "politician", "location")
+)
+
+# Multilingual extraction (12+ languages)
+results <- infer_extract_entities(
+  client,
+  "Emmanuel Macron est président de la France",
+  labels = c("person", "country", "job title"),
+  threshold = 0.4  # Adjust confidence threshold
+)
+
+# Process results
+for (result in results) {
+  cat("Text:", result$text, "\n")
+  cat("Found", result$entity_count, "entities:\n")
+  for (entity in result$entities) {
+    cat(sprintf("  - %s (%s, %.2f)\n", entity$text, entity$label, entity$score))
+  }
+}
+```
+
+**Output format**: List of results, each containing `text`, `entities` (list), `entity_count`, `labels_used`, `threshold`. Each entity has `text`, `label`, `start`, `end`, `score`.
+
+**Credit**: Uses [GLiNER](https://github.com/urchade/GLiNER) (third-party model, not LLM Tool trained)
 
 ### LLM inference with Ollama (via server)
 
@@ -176,6 +242,7 @@ df_classified <- df_clean |>
 | `infer_resources(client)` | Get server resource status |
 | `infer_classify(client, texts, model, threshold, parallel, device_mode)` | Classify text(s) |
 | `infer_classify_df(df, client, text_column, model, threshold, parallel)` | Classify data frame column |
+| `infer_extract_entities(client, texts, labels, model, threshold, flat_ner)` | Extract named entities (zero-shot NER) |
 
 ### Parameters
 
