@@ -140,7 +140,9 @@ for (result in results) {
 
 **Output format**: List of results, each containing `text`, `entities` (list), `entity_count`, `labels_used`, `threshold`. Each entity has `text`, `label`, `start`, `end`, `score`.
 
-**Credit**: Uses [GLiNER](https://github.com/urchade/GLiNER) (third-party model, not LLM Tool trained)
+**Credit**: Uses [GLiNER](https://github.com/urchade/GLiNER) or [GLiNER2](https://huggingface.co/fastino/gliner2-large-v1) (third-party models, not LLM Tool trained)
+
+**Note**: GLiNER2 supports 2048 token context (4x larger) for longer documents. Use `model="gliner2"` to access.
 
 ### LLM inference with Ollama (via server)
 
