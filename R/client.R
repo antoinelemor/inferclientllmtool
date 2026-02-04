@@ -251,6 +251,93 @@ infer_classify_df <- function(df, client, text_column, model = NULL, batch_size 
   df
 }
 
+#' Extract named entities using GLiNER zero-shot NER
+#'
+#' GLiNER is a third-party model (https://github.com/urchade/GLiNER) that
+#' supports multilingual entity extraction with custom labels. It can extract
+#' ANY entity type without training.
+#'
+#' @param client An infer_client object
+#' @param texts Character vector of texts to analyze
+#' @param labels Character vector of entity types to extract. Can be ANY entity type:
+#'   "person", "organization", "location", "political party", "disease", "product", etc.
+#' @param model NER model ID (default: "gliner")
+#' @param threshold Confidence threshold (0.0-1.0, default: 0.5)
+#' @param flat_ner Resolve overlapping entities (default: TRUE)
+#' @return A list of results, each containing:
+#'   \itemize{
+#'     \item text: Input text
+#'     \item entities: List of found entities with text, label, start, end, score
+#'     \item entity_count: Number of entities found
+#'     \item labels_used: Labels that were searched for
+#'   }
+#' @export
+#' @examples
+#' \dontrun{
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#'
+#' # Extract people and organizations
+#' results <- infer_extract_entities(
+#'   client,
+#'   "Apple Inc. was founded by Steve Jobs",
+#'   labels = c("person", "organization")
+#' )
+#'
+#' # Extract custom entity types
+#' results <- infer_extract_entities(
+#'   client,
+#'   c("The Democratic Party won the election",
+#'     "Joe Biden met with Emmanuel Macron"),
+#'   labels = c("political party", "politician", "event")
+#' )
+#'
+#' # Multilingual support (12+ languages)
+#' results <- infer_extract_entities(
+#'   client,
+#'   "Emmanuel Macron est président de la France",
+#'   labels = c("person", "country", "job title")
+#' )
+#'
+#' # Access entities from first result
+#' entities <- results[[1]]$entities
+#' for (entity in entities) {
+#'   cat(entity$text, "is a", entity$label, "\n")
+#' }
+#' }
+#' @details
+#' Supports 12+ languages: EN, FR, DE, ES, IT, PT, NL, RU, ZH, JA, AR
+#'
+#' Context window: 512 tokens
+#'
+#' GLiNER model credit: urchade/GLiNER (not trained by LLM Tool)
+infer_extract_entities <- function(client, texts, labels, model = "gliner",
+                                   threshold = 0.5, flat_ner = TRUE) {
+  if (length(labels) == 0) {
+    cli::cli_abort("Must provide at least one label")
+  }
+
+  body <- list(
+    texts = as.list(texts),
+    labels = as.list(labels),
+    threshold = threshold,
+    flat_ner = flat_ner
+  )
+
+  url <- paste0(client$base_url, "/models/", model, "/infer")
+
+  resp <- httr2::request(url) |>
+    httr2::req_headers(
+      "X-API-Key" = client$api_key,
+      "Content-Type" = "application/json"
+    ) |>
+    httr2::req_body_json(body) |>
+    httr2::req_timeout(client$timeout_seconds) |>
+    httr2::req_perform()
+
+  result <- httr2::resp_body_json(resp)
+  result$results
+}
+
 #' Get server resources
 #'
 #' @param client An infer_client object
