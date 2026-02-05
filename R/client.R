@@ -105,7 +105,10 @@ infer_model_config <- function(client, model_id, n_texts = 100) {
 #' @param threshold Override multi-label threshold (0.0-1.0)
 #' @param parallel Use parallel GPU+CPU inference (for large batches)
 #' @param device_mode Device mode for parallel: 'cpu', 'gpu', or 'both'
-#' @return A list with classification results, including training_mode and multi_label
+#' @param mc_samples MC Dropout forward passes for confidence intervals (0=disabled)
+#' @param ci_level Confidence interval level (default 0.95 for 95\% CI)
+#' @return A list with classification results, including training_mode and multi_label.
+#'   When mc_samples > 0, results include confidence_interval and probabilities_ci.
 #' @export
 #' @examples
 #' \dontrun{
@@ -119,9 +122,13 @@ infer_model_config <- function(client, model_id, n_texts = 100) {
 #'
 #' # Multi-label classification with custom threshold
 #' results <- infer_classify(client, texts, model = "themes", threshold = 0.3)
+#'
+#' # With 95\% confidence intervals (30 MC Dropout passes)
+#' results <- infer_classify(client, texts, model = "sentiment", mc_samples = 30)
 #' }
 infer_classify <- function(client, texts, model = NULL, threshold = NULL,
-                           parallel = FALSE, device_mode = "both") {
+                           parallel = FALSE, device_mode = "both",
+                           mc_samples = 0, ci_level = 0.95) {
   if (length(texts) == 1) {
     body <- list(text = texts)
   } else {
@@ -139,6 +146,12 @@ infer_classify <- function(client, texts, model = NULL, threshold = NULL,
     body$threshold <- threshold
   }
 
+  # MC Dropout confidence intervals
+  if (mc_samples > 0) {
+    body$mc_samples <- mc_samples
+    body$ci_level <- ci_level
+  }
+
   if (!is.null(model)) {
     url <- paste0(client$base_url, "/models/", model, "/infer")
   } else {
@@ -151,6 +164,7 @@ infer_classify <- function(client, texts, model = NULL, threshold = NULL,
       "Content-Type" = "application/json"
     ) |>
     httr2::req_body_json(body) |>
+    httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
 
   httr2::resp_body_json(resp)
@@ -174,7 +188,10 @@ infer_classify <- function(client, texts, model = NULL, threshold = NULL,
 #' @param batch_size Number of texts per API call (default 50)
 #' @param threshold Override multi-label threshold (0.0-1.0)
 #' @param parallel Use parallel GPU+CPU inference
-#' @return The data frame with added columns
+#' @param mc_samples MC Dropout forward passes for confidence intervals (0=disabled)
+#' @param ci_level Confidence interval level (default 0.95 for 95\% CI)
+#' @return The data frame with added columns. When mc_samples > 0, also adds
+#'   ci_lower_* and ci_upper_* columns for each class.
 #' @export
 #' @examples
 #' \dontrun{
@@ -184,11 +201,15 @@ infer_classify <- function(client, texts, model = NULL, threshold = NULL,
 #' # Single-label classification
 #' df_classified <- infer_classify_df(df, client, "text")
 #'
+#' # With 95% confidence intervals (30 MC Dropout passes)
+#' df_classified <- infer_classify_df(df, client, "text", mc_samples = 30)
+#'
 #' # Multi-label classification with custom threshold
 #' df_classified <- infer_classify_df(df, client, "text", model = "themes", threshold = 0.3)
 #' }
 infer_classify_df <- function(df, client, text_column, model = NULL, batch_size = 50,
-                              threshold = NULL, parallel = FALSE) {
+                              threshold = NULL, parallel = FALSE,
+                              mc_samples = 0, ci_level = 0.95) {
   if (!requireNamespace("dplyr", quietly = TRUE)) {
     cli::cli_abort("Package 'dplyr' is required for infer_classify_df()")
   }
@@ -204,7 +225,8 @@ infer_classify_df <- function(df, client, text_column, model = NULL, batch_size 
     batch_texts <- texts[i:end_idx]
 
     response <- infer_classify(client, batch_texts, model = model,
-                               threshold = threshold, parallel = parallel)
+                               threshold = threshold, parallel = parallel,
+                               mc_samples = mc_samples, ci_level = ci_level)
 
     # Track if this is a multi-label model
     multi_label <- isTRUE(response$multi_label)
@@ -246,6 +268,17 @@ infer_classify_df <- function(df, client, text_column, model = NULL, batch_size 
       col_name <- paste0("prob_", pname)
       df[[col_name]] <- sapply(all_results, function(r) r$probabilities[[pname]])
     }
+  }
+
+  # Add CI columns when mc_samples > 0
+  if (mc_samples > 0 && length(all_results) > 0 && !is.null(all_results[[1]]$probabilities_ci)) {
+    ci_names <- names(all_results[[1]]$probabilities_ci)
+    for (cname in ci_names) {
+      df[[paste0("ci_lower_", cname)]] <- sapply(all_results, function(r) r$probabilities_ci[[cname]]$lower)
+      df[[paste0("ci_upper_", cname)]] <- sapply(all_results, function(r) r$probabilities_ci[[cname]]$upper)
+    }
+    df$ci_level <- ci_level
+    df$mc_samples <- mc_samples
   }
 
   df
