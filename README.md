@@ -10,6 +10,7 @@ Classify texts at scale using models trained with [LLM Tool](https://github.com/
 - **Multi-label classification** — supports binary, multi-class, multi-label, and one-vs-all training modes
 - **Parallel GPU+CPU inference** — hybrid inference for large batches using server-side parallelization
 - **Configurable thresholds** — customize multi-label prediction thresholds
+- **MC Dropout confidence intervals** — estimate prediction uncertainty with per-class CI bounds
 - **Zero-shot NER** — extract entities with custom labels using GLiNER (requires server with `pip install 'infer-api[ner]'`)
   - **Multilingual**: 12+ languages (EN, FR, DE, ES, IT, PT, NL, RU, ZH, JA, AR)
   - **Custom labels**: ANY entity type ("political party", "disease", "product", etc.)
@@ -78,6 +79,17 @@ df_classified <- infer_classify_df(df, client, "text")
 # Classify a data frame column (multi-label)
 df_classified <- infer_classify_df(df, client, "text", model = "themes", threshold = 0.3)
 # Returns: text, labels (comma-separated), label_count, threshold, prob_*, ...
+
+# Classification with MC Dropout confidence intervals
+results <- infer_classify(client, "The economy is improving",
+                          model = "sentiment", mc_samples = 30, ci_level = 0.95)
+# results$results[[1]]$confidence_interval$lower  -> 0.25
+# results$results[[1]]$confidence_interval$upper  -> 0.97
+# results$results[[1]]$probabilities_ci$sentiment_long_positive$mean -> 0.61
+
+# Data frame with CI columns
+df_classified <- infer_classify_df(df, client, "text", model = "sentiment", mc_samples = 30)
+# Returns: ..., ci_lower_*, ci_upper_*, ci_level, mc_samples columns
 ```
 
 ### Sentence Segmentation (WTPSPLIT)
@@ -289,8 +301,8 @@ df_classified <- df_clean |>
 | `infer_model_info(client, model_id)` | Get model metadata |
 | `infer_model_config(client, model_id, n_texts)` | Get optimal inference configuration |
 | `infer_resources(client)` | Get server resource status |
-| `infer_classify(client, texts, model, threshold, parallel, device_mode)` | Classify text(s) |
-| `infer_classify_df(df, client, text_column, model, threshold, parallel)` | Classify data frame column |
+| `infer_classify(client, texts, model, threshold, parallel, device_mode, mc_samples, ci_level)` | Classify text(s) |
+| `infer_classify_df(df, client, text_column, model, threshold, parallel, mc_samples, ci_level)` | Classify data frame column |
 | `infer_extract_entities(client, texts, labels, model, threshold, flat_ner)` | Extract named entities (zero-shot NER) |
 
 ### Parameters
@@ -300,6 +312,8 @@ df_classified <- df_clean |>
 | `threshold` | model default | Multi-label threshold (0.0-1.0) |
 | `parallel` | `FALSE` | Enable parallel GPU+CPU inference |
 | `device_mode` | `"both"` | Device for parallel: `"cpu"`, `"gpu"`, or `"both"` |
+| `mc_samples` | `0` | MC Dropout forward passes for confidence intervals (0=disabled) |
+| `ci_level` | `0.95` | Confidence interval level (0.5-0.99) |
 
 ### Ollama (via server)
 
