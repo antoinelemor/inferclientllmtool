@@ -71,7 +71,8 @@ infer_ollama_models <- function(client) {
 #'   options = list(temperature = 0.7)
 #' )
 #' }
-infer_ollama_generate <- function(client, model, prompt, system = NULL, options = NULL) {
+infer_ollama_generate <- function(client, model, prompt, system = NULL,
+                                  options = NULL, keep_alive = NULL) {
   body <- list(
     model = model,
     prompt = prompt
@@ -83,6 +84,10 @@ infer_ollama_generate <- function(client, model, prompt, system = NULL, options 
 
   if (!is.null(options)) {
     body$options <- options
+  }
+
+  if (!is.null(keep_alive)) {
+    body$keep_alive <- keep_alive
   }
 
   resp <- httr2::request(paste0(client$base_url, "/ollama/generate")) |>
@@ -155,7 +160,8 @@ infer_ollama_generate <- function(client, model, prompt, system = NULL, options 
 #' )
 #' }
 infer_translate <- function(client, text, source_lang, target_lang,
-                            model = "translategemma:12b", options = NULL) {
+                            model = "translategemma:12b", options = NULL,
+                            keep_alive = NULL) {
   body <- list(
     text = text,
     source_lang = source_lang,
@@ -165,6 +171,10 @@ infer_translate <- function(client, text, source_lang, target_lang,
 
   if (!is.null(options)) {
     body$options <- options
+  }
+
+  if (!is.null(keep_alive)) {
+    body$keep_alive <- keep_alive
   }
 
   resp <- httr2::request(paste0(client$base_url, "/ollama/translate")) |>
@@ -200,7 +210,8 @@ infer_translate_languages <- function(client) {
   httr2::resp_body_json(resp)
 }
 
-infer_ollama_chat <- function(client, model, messages, options = NULL) {
+infer_ollama_chat <- function(client, model, messages, options = NULL,
+                              keep_alive = NULL) {
   body <- list(
     model = model,
     messages = messages
@@ -208,6 +219,10 @@ infer_ollama_chat <- function(client, model, messages, options = NULL) {
 
   if (!is.null(options)) {
     body$options <- options
+  }
+
+  if (!is.null(keep_alive)) {
+    body$keep_alive <- keep_alive
   }
 
   resp <- httr2::request(paste0(client$base_url, "/ollama/chat")) |>
