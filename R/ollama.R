@@ -125,6 +125,81 @@ infer_ollama_generate <- function(client, model, prompt, system = NULL, options 
 #' messages <- append(messages, list(list(role = "user", content = "Give me an example")))
 #' result <- infer_ollama_chat(client, "gemma3:27b", messages)
 #' }
+#' Translate text with TranslateGemma
+#'
+#' Translate text using TranslateGemma via the server's Ollama instance.
+#' Supports 130+ languages with regional variants (BCP-47 codes).
+#'
+#' @param client An infer_client object
+#' @param text The text to translate
+#' @param source_lang Source language code (e.g., "en", "fr", "zh-Hans")
+#' @param target_lang Target language code (e.g., "fr", "en", "es")
+#' @param model TranslateGemma model variant (default: "translategemma:12b")
+#' @param options Optional model parameters (temperature, top_p, etc.)
+#' @return A list with translation, source_lang, target_lang, model, etc.
+#' @export
+#' @examples
+#' \dontrun{
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#'
+#' # English to French
+#' result <- infer_translate(client, "Hello, how are you?", "en", "fr")
+#' cat(result$translation)
+#'
+#' # French to Spanish
+#' result <- infer_translate(client, "Bonjour le monde", "fr", "es")
+#'
+#' # With custom parameters
+#' result <- infer_translate(client, "The economy is growing", "en", "de",
+#'   options = list(temperature = 0.3)
+#' )
+#' }
+infer_translate <- function(client, text, source_lang, target_lang,
+                            model = "translategemma:12b", options = NULL) {
+  body <- list(
+    text = text,
+    source_lang = source_lang,
+    target_lang = target_lang,
+    model = model
+  )
+
+  if (!is.null(options)) {
+    body$options <- options
+  }
+
+  resp <- httr2::request(paste0(client$base_url, "/ollama/translate")) |>
+    httr2::req_headers(
+      "X-API-Key" = client$api_key,
+      "Content-Type" = "application/json"
+    ) |>
+    httr2::req_body_json(body) |>
+    httr2::req_timeout(300) |>
+    httr2::req_perform()
+
+  httr2::resp_body_json(resp)
+}
+
+#' List TranslateGemma supported languages
+#'
+#' Get the list of all languages supported by TranslateGemma.
+#'
+#' @param client An infer_client object
+#' @return A list with 'languages' (list of code/name pairs) and 'count'
+#' @export
+#' @examples
+#' \dontrun{
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#' langs <- infer_translate_languages(client)
+#' print(paste(langs$count, "languages supported"))
+#' }
+infer_translate_languages <- function(client) {
+  resp <- httr2::request(paste0(client$base_url, "/ollama/translate/languages")) |>
+    httr2::req_headers("X-API-Key" = client$api_key) |>
+    httr2::req_perform()
+
+  httr2::resp_body_json(resp)
+}
+
 infer_ollama_chat <- function(client, model, messages, options = NULL) {
   body <- list(
     model = model,

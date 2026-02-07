@@ -246,6 +246,32 @@ messages <- append(messages, list(list(role = "user", content = "Give an example
 result <- infer_ollama_chat(client, "gemma3:27b", messages)
 ```
 
+### Translation with TranslateGemma (130+ languages)
+
+Translate text between 130+ languages using Google's TranslateGemma model:
+
+```r
+library(inferclientllmtool)
+
+client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+
+# English to French
+result <- infer_translate(client, "The economy is growing steadily", "en", "fr")
+cat(result$translation)
+
+# French to Spanish
+result <- infer_translate(client, "Bonjour le monde", "fr", "es")
+
+# With custom parameters
+result <- infer_translate(client, "Hello world", "en", "zh-Hans",
+  options = list(temperature = 0.3)
+)
+
+# List supported languages
+langs <- infer_translate_languages(client)
+print(paste(langs$count, "languages supported"))
+```
+
 ## Integration example: Radar+ pipeline
 
 Use remote Ollama inference for extraction tasks:
@@ -323,6 +349,13 @@ df_classified <- df_clean |>
 | `infer_ollama_models(client)` | List available models |
 | `infer_ollama_generate(client, model, prompt, system, options)` | Generate text |
 | `infer_ollama_chat(client, model, messages, options)` | Multi-turn chat |
+
+### Translation (TranslateGemma)
+
+| Function | Description |
+|----------|-------------|
+| `infer_translate(client, text, source_lang, target_lang, model, options)` | Translate text (130+ languages) |
+| `infer_translate_languages(client)` | List supported languages |
 
 ### Model info response
 
