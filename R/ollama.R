@@ -173,7 +173,7 @@ infer_translate <- function(client, text, source_lang, target_lang,
       "Content-Type" = "application/json"
     ) |>
     httr2::req_body_json(body) |>
-    httr2::req_timeout(300) |>
+    httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
 
   httr2::resp_body_json(resp)
