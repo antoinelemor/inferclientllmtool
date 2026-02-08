@@ -1,19 +1,31 @@
+# Internal helper to add auth headers (API key + optional password) to a request
+.add_auth <- function(req, client) {
+  req <- req |> httr2::req_headers("X-API-Key" = client$api_key)
+  if (nzchar(client$api_password)) {
+    req <- req |> httr2::req_headers("X-API-Password" = client$api_password)
+  }
+  req
+}
+
 #' Connect to LLM Tool Inference API
 #'
 #' Create a connection object for the inference API.
 #'
 #' @param base_url The base URL of your inference API server
 #' @param api_key Your API key for authentication
+#' @param api_password Optional API password for key+password authentication (default: "")
 #' @param timeout_seconds Request timeout in seconds (default: 600)
 #' @return An infer_client object
 #' @export
 #' @examples
 #' \dontrun{
 #' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#' # With password authentication:
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY", "YOUR_PASSWORD")
 #' # For large models that take longer to respond:
 #' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY", timeout_seconds = 600)
 #' }
-infer_connect <- function(base_url, api_key, timeout_seconds = 600) {
+infer_connect <- function(base_url, api_key, api_password = "", timeout_seconds = 600) {
   if (missing(base_url) || is.null(base_url) || base_url == "") {
     cli::cli_abort("base_url is required")
   }
@@ -26,6 +38,7 @@ infer_connect <- function(base_url, api_key, timeout_seconds = 600) {
   client <- list(
     base_url = base_url,
     api_key = api_key,
+    api_password = api_password,
     timeout_seconds = timeout_seconds
   )
   class(client) <- "infer_client"
@@ -159,10 +172,8 @@ infer_classify <- function(client, texts, model = NULL, threshold = NULL,
   }
 
   resp <- httr2::request(url) |>
-    httr2::req_headers(
-      "X-API-Key" = client$api_key,
-      "Content-Type" = "application/json"
-    ) |>
+    .add_auth(client) |>
+    httr2::req_headers("Content-Type" = "application/json") |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
@@ -319,10 +330,8 @@ infer_segment_sentences <- function(client, texts, model = "wtpsplit", mode = "s
   url <- paste0(client$base_url, "/models/", model, "/segment")
 
   resp <- httr2::request(url) |>
-    httr2::req_headers(
-      "X-API-Key" = client$api_key,
-      "Content-Type" = "application/json"
-    ) |>
+    .add_auth(client) |>
+    httr2::req_headers("Content-Type" = "application/json") |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
@@ -405,10 +414,8 @@ infer_extract_entities <- function(client, texts, labels, model = "gliner",
   url <- paste0(client$base_url, "/models/", model, "/infer")
 
   resp <- httr2::request(url) |>
-    httr2::req_headers(
-      "X-API-Key" = client$api_key,
-      "Content-Type" = "application/json"
-    ) |>
+    .add_auth(client) |>
+    httr2::req_headers("Content-Type" = "application/json") |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
@@ -434,6 +441,7 @@ print.infer_client <- function(x, ...) {
   cat("<infer_client>\n")
   cat("  URL:", x$base_url, "\n")
   cat("  Key:", substr(x$api_key, 1, 12), "...\n")
+  cat("  Password:", if (nzchar(x$api_password)) "set" else "none", "\n")
   cat("  Timeout:", x$timeout_seconds, "seconds\n")
   invisible(x)
 }

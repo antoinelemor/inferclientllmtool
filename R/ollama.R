@@ -13,7 +13,7 @@
 #' }
 infer_ollama_status <- function(client) {
   resp <- httr2::request(paste0(client$base_url, "/ollama/status")) |>
-    httr2::req_headers("X-API-Key" = client$api_key) |>
+    .add_auth(client) |>
     httr2::req_perform()
 
   httr2::resp_body_json(resp)
@@ -34,7 +34,7 @@ infer_ollama_status <- function(client) {
 #' }
 infer_ollama_models <- function(client) {
   resp <- httr2::request(paste0(client$base_url, "/ollama/models")) |>
-    httr2::req_headers("X-API-Key" = client$api_key) |>
+    .add_auth(client) |>
     httr2::req_perform()
 
   httr2::resp_body_json(resp)
@@ -91,10 +91,8 @@ infer_ollama_generate <- function(client, model, prompt, system = NULL,
   }
 
   resp <- httr2::request(paste0(client$base_url, "/ollama/generate")) |>
-    httr2::req_headers(
-      "X-API-Key" = client$api_key,
-      "Content-Type" = "application/json"
-    ) |>
+    .add_auth(client) |>
+    httr2::req_headers("Content-Type" = "application/json") |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
@@ -178,10 +176,8 @@ infer_translate <- function(client, text, source_lang, target_lang,
   }
 
   resp <- httr2::request(paste0(client$base_url, "/ollama/translate")) |>
-    httr2::req_headers(
-      "X-API-Key" = client$api_key,
-      "Content-Type" = "application/json"
-    ) |>
+    .add_auth(client) |>
+    httr2::req_headers("Content-Type" = "application/json") |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()
@@ -204,7 +200,7 @@ infer_translate <- function(client, text, source_lang, target_lang,
 #' }
 infer_translate_languages <- function(client) {
   resp <- httr2::request(paste0(client$base_url, "/ollama/translate/languages")) |>
-    httr2::req_headers("X-API-Key" = client$api_key) |>
+    .add_auth(client) |>
     httr2::req_perform()
 
   httr2::resp_body_json(resp)
@@ -226,10 +222,8 @@ infer_ollama_chat <- function(client, model, messages, options = NULL,
   }
 
   resp <- httr2::request(paste0(client$base_url, "/ollama/chat")) |>
-    httr2::req_headers(
-      "X-API-Key" = client$api_key,
-      "Content-Type" = "application/json"
-    ) |>
+    .add_auth(client) |>
+    httr2::req_headers("Content-Type" = "application/json") |>
     httr2::req_body_json(body) |>
     httr2::req_timeout(client$timeout_seconds) |>
     httr2::req_perform()

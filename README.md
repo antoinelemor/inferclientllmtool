@@ -40,6 +40,13 @@ client <- infer_connect(
   api_key = "YOUR_API_KEY"
 )
 
+# With password authentication (if required by your API key)
+client <- infer_connect(
+  base_url = "https://your-server.example.com",
+  api_key = "YOUR_API_KEY",
+  api_password = "YOUR_PASSWORD"
+)
+
 # Check available models (includes training_mode, multi_label info)
 infer_models(client)
 
@@ -321,7 +328,7 @@ df_classified <- df_clean |>
 
 | Function | Description |
 |----------|-------------|
-| `infer_connect(base_url, api_key)` | Connect to inference API |
+| `infer_connect(base_url, api_key, api_password)` | Connect to inference API |
 | `infer_health(client)` | Check API status |
 | `infer_models(client)` | List available models with training mode info |
 | `infer_model_info(client, model_id)` | Get model metadata |
