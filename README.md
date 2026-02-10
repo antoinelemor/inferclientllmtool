@@ -210,6 +210,21 @@ for (result in results) {
 
 **Note**: GLiNER2 supports 2048 token context (4x larger) for longer documents. Use `model="gliner2"` to access.
 
+### DataFrame NER
+
+Extract entities from a data frame column, with automatic boolean flags per label:
+
+```r
+df <- data.frame(text = c(
+  "Apple Inc. was founded by Steve Jobs in Cupertino",
+  "Microsoft acquired GitHub in 2018"
+))
+
+result_df <- infer_extract_entities_df(df, client, "text",
+  labels = c("person", "organization", "location"))
+# Adds columns: entity_count, has_person, has_organization, has_location, entities_json
+```
+
 ### LLM inference with Ollama (via server)
 
 Generate text using decoder models via the server's Ollama integration:
@@ -337,6 +352,8 @@ df_classified <- df_clean |>
 | `infer_classify(client, texts, model, threshold, parallel, device_mode, mc_samples, ci_level)` | Classify text(s) |
 | `infer_classify_df(df, client, text_column, model, threshold, parallel, mc_samples, ci_level)` | Classify data frame column |
 | `infer_extract_entities(client, texts, labels, model, threshold, flat_ner)` | Extract named entities (zero-shot NER) |
+| `infer_extract_entities_df(df, client, text_column, labels, model, threshold, flat_ner)` | Extract entities from data frame column |
+| `infer_segment_sentences(client, texts, mode)` | Segment text into sentences (WTPSPLIT) |
 
 ### Parameters
 

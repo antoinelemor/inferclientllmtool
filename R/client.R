@@ -424,6 +424,68 @@ infer_extract_entities <- function(client, texts, labels, model = "gliner",
   result$results
 }
 
+#' Extract entities from a data frame
+#'
+#' Sends all texts to the server in a single call (the server handles
+#' batching and parallelization automatically). Adds columns for entity
+#' count, per-label boolean flags, and a JSON entities column.
+#'
+#' @param df A data frame
+#' @param client An infer_client object
+#' @param text_column Name of the column containing texts
+#' @param labels Character vector of entity types to extract
+#' @param model NER model ID (default: "gliner")
+#' @param threshold Confidence threshold (0.0-1.0, default: 0.5)
+#' @param flat_ner Resolve overlapping entities (default: TRUE)
+#' @return The input data frame with added columns: entity_count, has_<label>, entities_json
+#' @export
+#' @examples
+#' \dontrun{
+#' client <- infer_connect("http://localhost:8000", api_key = "...")
+#' df <- data.frame(text = c("Steve Jobs founded Apple", "Paris, France"))
+#' df2 <- infer_extract_entities_df(df, client, "text", c("person", "location"))
+#' }
+infer_extract_entities_df <- function(df, client, text_column, labels,
+                                      model = "gliner", threshold = 0.5,
+                                      flat_ner = TRUE) {
+  if (!text_column %in% names(df)) {
+    cli::cli_abort("Column '{text_column}' not found in data frame")
+  }
+
+  texts <- as.character(df[[text_column]])
+
+  # Send all texts in one call — server handles batch/parallel
+  results <- infer_extract_entities(
+    client = client,
+    texts = texts,
+    labels = labels,
+    model = model,
+    threshold = threshold,
+    flat_ner = flat_ner
+  )
+
+  # Add entity_count column
+  df$entity_count <- vapply(results, function(r) {
+    r$entity_count %||% 0L
+  }, integer(1))
+
+  # Add has_<label> boolean columns
+  for (label in labels) {
+    col_name <- paste0("has_", gsub(" ", "_", label))
+    df[[col_name]] <- vapply(results, function(r) {
+      entities <- r$entities %||% list()
+      any(vapply(entities, function(e) identical(e$label, label), logical(1)))
+    }, logical(1))
+  }
+
+  # Add entities_json column
+  df$entities_json <- vapply(results, function(r) {
+    jsonlite::toJSON(r$entities %||% list(), auto_unbox = TRUE)
+  }, character(1))
+
+  df
+}
+
 #' Get server resources
 #'
 #' @param client An infer_client object
