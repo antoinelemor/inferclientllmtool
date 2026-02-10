@@ -187,9 +187,10 @@ infer_translate <- function(client, text, source_lang, target_lang,
 
 #' Translate a batch of texts with TranslateGemma (server-side pacing)
 #'
-#' Send multiple texts in a single request. The server translates each
-#' text sequentially with a configurable delay between Ollama calls,
-#' preventing Metal runner deadlock.
+#' Texts are automatically chunked into groups of \code{chunk_size} to stay
+#' within proxy timeout limits (e.g. Cloudflare 100s). Each chunk is sent
+#' as a separate HTTP request; the server translates texts sequentially
+#' with a configurable delay between Ollama calls.
 #'
 #' @param client An infer_client object
 #' @param texts Character vector of texts to translate
@@ -198,6 +199,7 @@ infer_translate <- function(client, text, source_lang, target_lang,
 #' @param model TranslateGemma model variant (default: "translategemma:12b")
 #' @param options Optional model parameters (temperature, top_p, etc.)
 #' @param delay_ms Delay between Ollama calls in ms (default: 200)
+#' @param chunk_size Max texts per HTTP call (default: 8)
 #' @return A list with translations (character vector), source_lang,
 #'   target_lang, model, count, errors
 #' @export
@@ -213,27 +215,46 @@ infer_translate <- function(client, text, source_lang, target_lang,
 #' }
 infer_translate_batch <- function(client, texts, source_lang, target_lang,
                                   model = "translategemma:12b", options = NULL,
-                                  delay_ms = 200) {
-  body <- list(
-    texts = as.list(texts),
-    source_lang = source_lang,
-    target_lang = target_lang,
-    model = model,
-    delay_ms = delay_ms
-  )
+                                  delay_ms = 200, chunk_size = 8) {
+  all_translations <- character(0)
+  all_errors <- character(0)
+  meta <- NULL
 
-  if (!is.null(options)) {
-    body$options <- options
+  n_chunks <- ceiling(length(texts) / chunk_size)
+  for (ci in seq_len(n_chunks)) {
+    start_idx <- (ci - 1) * chunk_size + 1
+    end_idx <- min(ci * chunk_size, length(texts))
+    chunk_texts <- texts[start_idx:end_idx]
+
+    body <- list(
+      texts = as.list(chunk_texts),
+      source_lang = source_lang,
+      target_lang = target_lang,
+      model = model,
+      delay_ms = delay_ms
+    )
+    if (!is.null(options)) body$options <- options
+
+    resp <- httr2::request(paste0(client$base_url, "/ollama/translate/batch")) |>
+      .add_auth(client) |>
+      httr2::req_headers("Content-Type" = "application/json") |>
+      httr2::req_body_json(body) |>
+      httr2::req_timeout(90) |>
+      httr2::req_perform()
+
+    data <- httr2::resp_body_json(resp)
+    all_translations <- c(all_translations, unlist(data$translations))
+    if (length(data$errors) > 0) {
+      all_errors <- c(all_errors, unlist(data$errors))
+    }
+    if (is.null(meta)) {
+      meta <- list(source_lang = data$source_lang, target_lang = data$target_lang,
+                   model = data$model)
+    }
   }
 
-  resp <- httr2::request(paste0(client$base_url, "/ollama/translate/batch")) |>
-    .add_auth(client) |>
-    httr2::req_headers("Content-Type" = "application/json") |>
-    httr2::req_body_json(body) |>
-    httr2::req_timeout(max(client$timeout_seconds, 60 + length(texts) * 15)) |>
-    httr2::req_perform()
-
-  httr2::resp_body_json(resp)
+  c(meta, list(translations = all_translations, count = length(all_translations),
+               errors = all_errors))
 }
 
 #' List TranslateGemma supported languages
