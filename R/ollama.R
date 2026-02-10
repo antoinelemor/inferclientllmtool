@@ -185,6 +185,57 @@ infer_translate <- function(client, text, source_lang, target_lang,
   httr2::resp_body_json(resp)
 }
 
+#' Translate a batch of texts with TranslateGemma (server-side pacing)
+#'
+#' Send multiple texts in a single request. The server translates each
+#' text sequentially with a configurable delay between Ollama calls,
+#' preventing Metal runner deadlock.
+#'
+#' @param client An infer_client object
+#' @param texts Character vector of texts to translate
+#' @param source_lang Source language code (e.g., "en", "fr")
+#' @param target_lang Target language code (e.g., "fr", "en")
+#' @param model TranslateGemma model variant (default: "translategemma:12b")
+#' @param options Optional model parameters (temperature, top_p, etc.)
+#' @param delay_ms Delay between Ollama calls in ms (default: 200)
+#' @return A list with translations (character vector), source_lang,
+#'   target_lang, model, count, errors
+#' @export
+#' @examples
+#' \dontrun{
+#' client <- infer_connect("https://your-server.example.com", "YOUR_API_KEY")
+#'
+#' result <- infer_translate_batch(client,
+#'   c("Hello world", "Good morning", "Thank you"),
+#'   "en", "fr"
+#' )
+#' cat(result$translations)
+#' }
+infer_translate_batch <- function(client, texts, source_lang, target_lang,
+                                  model = "translategemma:12b", options = NULL,
+                                  delay_ms = 200) {
+  body <- list(
+    texts = as.list(texts),
+    source_lang = source_lang,
+    target_lang = target_lang,
+    model = model,
+    delay_ms = delay_ms
+  )
+
+  if (!is.null(options)) {
+    body$options <- options
+  }
+
+  resp <- httr2::request(paste0(client$base_url, "/ollama/translate/batch")) |>
+    .add_auth(client) |>
+    httr2::req_headers("Content-Type" = "application/json") |>
+    httr2::req_body_json(body) |>
+    httr2::req_timeout(max(client$timeout_seconds, 60 + length(texts) * 15)) |>
+    httr2::req_perform()
+
+  httr2::resp_body_json(resp)
+}
+
 #' List TranslateGemma supported languages
 #'
 #' Get the list of all languages supported by TranslateGemma.

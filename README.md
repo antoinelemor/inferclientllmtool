@@ -292,6 +292,14 @@ result <- infer_translate(client, "Hello world", "en", "zh-Hans",
 # List supported languages
 langs <- infer_translate_languages(client)
 print(paste(langs$count, "languages supported"))
+
+# Batch translation with server-side pacing (prevents Ollama deadlock)
+result <- infer_translate_batch(client,
+  c("The economy is growing", "Markets are stable", "Inflation is rising"),
+  "en", "fr",
+  delay_ms = 200  # 200ms between Ollama calls (default)
+)
+print(result$translations)
 ```
 
 ## Integration example: Radar+ pipeline
@@ -379,6 +387,7 @@ df_classified <- df_clean |>
 | Function | Description |
 |----------|-------------|
 | `infer_translate(client, text, source_lang, target_lang, model, options)` | Translate text (130+ languages) |
+| `infer_translate_batch(client, texts, source_lang, target_lang, model, options, delay_ms)` | Batch translate with server-side pacing |
 | `infer_translate_languages(client)` | List supported languages |
 
 ### Model info response
