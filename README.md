@@ -412,3 +412,24 @@ df_classified <- df_clean |>
 ## License
 
 MIT
+
+
+## CAP theme heads (one-vs-all families)
+
+The API serves families of one-vs-all binary heads (model ids sharing a
+prefix, e.g. `cap_theme_health`, ..., and `party_*` once deployed). One
+call classifies against every head of a family, concurrently, applying
+each head's calibrated decision threshold shipped in its metadata:
+
+```r
+client <- infer_connect(Sys.getenv("INFER_API_URL"), Sys.getenv("INFER_API_KEY"))
+res <- infer_cap_themes(client, df$title)
+# res: text_index | model_id | category | score | decision
+subset(res, decision & text_index == 1)
+
+# Generic form (any family, e.g. parties later):
+res <- infer_binary_family(client, texts, prefix = "party_")
+```
+
+Keep the default `chunk_size = 64`: beyond 100 texts per request the
+server degrades sharply (requests are capped at 100 internally).

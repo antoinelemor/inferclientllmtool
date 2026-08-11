@@ -72,6 +72,7 @@ infer_health <- function(client) {
 #' @export
 infer_models <- function(client) {
   resp <- httr2::request(paste0(client$base_url, "/models")) |>
+    .add_auth(client) |>
     httr2::req_perform()
 
   httr2::resp_body_json(resp)
@@ -85,6 +86,7 @@ infer_models <- function(client) {
 #' @export
 infer_model_info <- function(client, model_id) {
   resp <- httr2::request(paste0(client$base_url, "/models/", model_id)) |>
+    .add_auth(client) |>
     httr2::req_perform()
 
   httr2::resp_body_json(resp)
